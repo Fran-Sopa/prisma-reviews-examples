@@ -1941,7 +1941,7 @@
                     "reply.failed",
                     "connection.updated"
                   ],
-                  "secret": "whsec_3q2Xk9LmP0aB7cD1eF4gH6jK8mN2pQ5r",
+                  "secret": "whsec_example_secret_shown_once",
                   "created_at": "2026-10-21T09:20:00.000Z"
                 }
               }
