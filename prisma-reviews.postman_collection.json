@@ -1,0 +1,682 @@
+{
+  "info": {
+    "name": "Prisma Reviews API",
+    "description": "One API to read and reply to reviews on the App Store, Google Play, Judge.me, Trusted Shops and eKomi, and read Yelp, Tripadvisor, Booking.com, Google Maps, G2 and 20+ more platforms, all in one JSON format. Google Business Profile, Trustpilot, eBay and Etsy are coming soon with live keys (they work with test keys today); `GET /v1/platforms` shows `live_ready` for each one.\n\n1. Create a free account at https://app.prismareviews.com/signup and copy your test key (`pk_test_…`).\n2. Paste it in the collection variable `api_key`.\n3. Run **Connections → Create a connection (test)**, then **Reviews → List reviews**. Test keys return sample locations and reviews for every platform and never publish replies.\n\nDocs: https://prismareviews.com/docs · Errors: https://prismareviews.com/docs/errors",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.prismareviews.com"
+    },
+    {
+      "key": "api_key",
+      "value": "pk_test_your_key_here"
+    },
+    {
+      "key": "location_id",
+      "value": ""
+    },
+    {
+      "key": "review_id",
+      "value": ""
+    },
+    {
+      "key": "connection_id",
+      "value": ""
+    },
+    {
+      "key": "webhook_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "List reviews",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  const v = j.data && j.data[0] && j.data[0].id;",
+                  "  if (v) pm.collectionVariables.set('review_id', v);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/reviews?",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "reviews"
+              ],
+              "query": [
+                {
+                  "key": "location_id",
+                  "value": "{{location_id}}",
+                  "description": "Only reviews of this location",
+                  "disabled": true
+                },
+                {
+                  "key": "platform",
+                  "value": "google",
+                  "description": "One of: google, app_store, google_play, judge_me, trustpilot, google_maps, yelp, tripadvisor, booking, yotpo, reviews_io, g2, ebay, etsy, steam, okendo, feefo, trusted_shops, ekomi, loox, proven_expert, shopper_approved, wordpress, appexchange, facebook, opentable, doordash, angi, checkatrade, avvo, capterra, apartments",
+                  "disabled": true
+                },
+                {
+                  "key": "since",
+                  "value": "2026-10-01",
+                  "description": "Reviews written at or after this date or timestamp (ISO 8601)",
+                  "disabled": true
+                },
+                {
+                  "key": "has_reply",
+                  "value": "false",
+                  "description": "true: with a reply in any status; false: without one",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Page size, 1 to 100 (default 50)",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "next_cursor of the previous page",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Reviews across your locations, newest first, in the same shape on every platform. Saves the first review ID in `review_id`.\n\nDocs: https://prismareviews.com/docs/api-reference/reviews"
+          }
+        },
+        {
+          "name": "Get a review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/reviews/{{review_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "reviews",
+                "{{review_id}}"
+              ]
+            },
+            "description": "Docs: https://prismareviews.com/docs/api-reference/reviews"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Replies",
+      "item": [
+        {
+          "name": "Reply to a review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Retrying with the same key and body returns the first response instead of replying twice"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/reviews/{{review_id}}/reply",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "reviews",
+                "{{review_id}}",
+                "reply"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Thanks for your review! We are glad you enjoyed it.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Creates or replaces the reply. Published through the platform's official API (queued first). Read-only platforms return 422 reply_not_supported with the link to answer on the platform. Test keys accept the reply and never publish it.\n\nDocs: https://prismareviews.com/docs/api-reference/replies"
+          }
+        },
+        {
+          "name": "Delete a reply",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/reviews/{{review_id}}/reply",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "reviews",
+                "{{review_id}}",
+                "reply"
+              ]
+            },
+            "description": "Removes the reply on platforms that allow it.\n\nDocs: https://prismareviews.com/docs/api-reference/replies"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Locations",
+      "item": [
+        {
+          "name": "List locations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  const v = j.data && j.data[0] && j.data[0].id;",
+                  "  if (v) pm.collectionVariables.set('location_id', v);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/locations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "locations"
+              ]
+            },
+            "description": "Saves the first location ID in `location_id`.\n\nDocs: https://prismareviews.com/docs/api-reference/locations"
+          }
+        },
+        {
+          "name": "Get a location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/locations/{{location_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "locations",
+                "{{location_id}}"
+              ]
+            },
+            "description": "Docs: https://prismareviews.com/docs/api-reference/locations"
+          }
+        },
+        {
+          "name": "Refresh a location",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/locations/{{location_id}}/refresh",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "locations",
+                "{{location_id}}",
+                "refresh"
+              ]
+            },
+            "description": "Refresh now: queues a check for new reviews (202). Not available on the free Spark plan.\n\nDocs: https://prismareviews.com/docs/api-reference/locations"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Connections",
+      "item": [
+        {
+          "name": "Create a connection (test)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  const v = j.id;",
+                  "  if (v) pm.collectionVariables.set('connection_id', v);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/connections",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "connections"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"google\",\n  \"metadata\": {\n    \"client\": \"acme\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "With a test key any platform connects at once, with two sample locations and five sample reviews per location. With a live key, OAuth platforms (Google and Trustpilot, coming soon) need `redirect_url` and return an `authorization_url` for the owner to approve. Saves the connection ID in `connection_id`.\n\nDocs: https://prismareviews.com/docs/api-reference/connections"
+          }
+        },
+        {
+          "name": "Create a connection (Google OAuth)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  const v = j.id;",
+                  "  if (v) pm.collectionVariables.set('connection_id', v);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/connections",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "connections"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"google\",\n  \"redirect_url\": \"https://yourapp.com/prisma/callback\",\n  \"metadata\": {\n    \"client\": \"acme\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Live key: returns `authorization_url`. Send the owner there; after approving they land on `redirect_url` with `connection_id`, `status` and `locations_created`. Coming soon: until Google approves Prisma's access, live keys get `501 platform_not_available`; read public Google reviews meanwhile with `google_maps` and a Google Maps link.\n\nDocs: https://prismareviews.com/docs/api-reference/connections"
+          }
+        },
+        {
+          "name": "Create a connection (App Store credentials)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/connections",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "connections"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"app_store\",\n  \"credentials\": {\n    \"issuer_id\": \"your-issuer-id\",\n    \"key_id\": \"YOURKEYID\",\n    \"private_key\": \"-----BEGIN PRIVATE KEY-----\\n…\\n-----END PRIVATE KEY-----\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "App Store Connect API key (Issuer ID, Key ID and the .p8 contents). Each app the key can see becomes a location. Other credential platforms (Google Play, Judge.me, Trusted Shops, eKomi, Okendo, Feefo, Yotpo, REVIEWS.io, G2…) use other fields: see the Platforms reference or `GET /v1/platforms/{id}`.\n\nDocs: https://prismareviews.com/docs/api-reference/platforms"
+          }
+        },
+        {
+          "name": "Create a connection (Yelp listing URL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/connections",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "connections"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"yelp\",\n  \"listing_url\": \"https://www.yelp.com/biz/example-cafe-san-francisco\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Read-only platforms (Yelp, Tripadvisor, Booking.com, Google Maps, Steam, WordPress.org…) connect by the public listing URL. Yelp, Tripadvisor, Booking.com and Google Maps use paid reads: from the Beam plan, or Spark with a read pack.\n\nDocs: https://prismareviews.com/docs/api-reference/connections"
+          }
+        },
+        {
+          "name": "List connections",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  const v = j.data && j.data[0] && j.data[0].id;",
+                  "  if (v) pm.collectionVariables.set('connection_id', v);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/connections",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "connections"
+              ]
+            },
+            "description": "Docs: https://prismareviews.com/docs/api-reference/connections"
+          }
+        },
+        {
+          "name": "Delete a connection",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/connections/{{connection_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "connections",
+                "{{connection_id}}"
+              ]
+            },
+            "description": "Disconnects it: tokens are revoked and deleted, and its review data is deleted within 30 days.\n\nDocs: https://prismareviews.com/docs/api-reference/connections"
+          }
+        },
+        {
+          "name": "Create a connect link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/connect_links",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "connect_links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"google\",\n  \"redirect_url\": \"https://yourapp.com/prisma/connected\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A hosted page where your customer connects their own account. Both fields are optional.\n\nDocs: https://prismareviews.com/docs/api-reference/connections"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Platforms",
+      "item": [
+        {
+          "name": "List platforms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/platforms",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "platforms"
+              ]
+            },
+            "description": "Every platform, how it connects and whether your plan includes it.\n\nDocs: https://prismareviews.com/docs/api-reference/platforms"
+          }
+        },
+        {
+          "name": "Get a platform",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/platforms/google",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "platforms",
+                "google"
+              ]
+            },
+            "description": "Platform IDs: google, app_store, google_play, judge_me, trustpilot, google_maps, yelp, tripadvisor, booking, yotpo, reviews_io, g2, ebay, etsy, steam, okendo, feefo, trusted_shops, ekomi, loox, proven_expert, shopper_approved, wordpress, appexchange, facebook, opentable, doordash, angi, checkatrade, avvo, capterra, apartments\n\nDocs: https://prismareviews.com/docs/api-reference/platforms"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Register an endpoint",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  const v = j.id;",
+                  "  if (v) pm.collectionVariables.set('webhook_id', v);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "webhooks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://yourapp.com/webhooks/prisma\",\n  \"events\": [\n    \"review.created\",\n    \"reply.failed\",\n    \"connection.updated\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The response includes the signing `secret`, shown once. Events: review.created, review.updated, reply.published, reply.failed, connection.updated, or [\"*\"]. Saves the ID in `webhook_id`.\n\nDocs: https://prismareviews.com/docs/api-reference/webhooks"
+          }
+        },
+        {
+          "name": "List endpoints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "webhooks"
+              ]
+            },
+            "description": "Docs: https://prismareviews.com/docs/api-reference/webhooks"
+          }
+        },
+        {
+          "name": "Delete an endpoint",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks/{{webhook_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "webhooks",
+                "{{webhook_id}}"
+              ]
+            },
+            "description": "Docs: https://prismareviews.com/docs/api-reference/webhooks"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usage",
+      "item": [
+        {
+          "name": "Get usage",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/usage",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "usage"
+              ]
+            },
+            "description": "Plan, locations used and included, requests this month and your per-minute rate limit.\n\nDocs: https://prismareviews.com/docs/api-reference/usage"
+          }
+        }
+      ]
+    }
+  ]
+}

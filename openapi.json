@@ -1,0 +1,3817 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Prisma Reviews API",
+    "version": "1.0.0",
+    "summary": "One REST API to read and reply to reviews on the App Store, Google Play, Yelp, Tripadvisor and more.",
+    "description": "Read the reviews of the businesses and apps you own or manage on the App Store, Google Play, Judge.me, Trusted Shops, eKomi, Yelp, Tripadvisor, Booking.com, G2 and 20+ more platforms, all in one normalized JSON shape, and reply through each platform's official API where it has one (read-only platforms return the link where a review is answered). Google Business Profile, Trustpilot, eBay and Etsy are coming soon: `GET /v1/platforms` says which platforms are ready (`live_ready`).\n\n- **Auth:** `Authorization: Bearer <key>`. Live keys (`pk_live_…`) work with real accounts; test keys (`pk_test_…`) connect any platform with sample locations and reviews and never publish replies. Test and live data never mix.\n- **Format:** JSON in and out; timestamps are ISO 8601 in UTC; IDs are prefixed (`rev_`, `loc_`, `con_`, `we_`, `evt_`, `req_`).\n- **Pagination:** `GET /v1/reviews` is cursor paginated (`data` + `next_cursor`).\n- **Rate limits:** per key and per minute, set by the plan (Spark 60, Beam 120, Spectrum 600, Aurora 1,200), reported in `X-RateLimit-Limit` and `X-RateLimit-Remaining`.\n- **Errors:** one shape, `{ \"error\": { \"type\", \"code\", \"message\", \"retryable\", \"request_id\", \"docs_url\" } }`; codes on https://prismareviews.com/docs/errors.\n- **Webhooks:** signed `POST`s for new and updated reviews, published or failed replies and connection changes.\n\nGet a free API key at https://app.prismareviews.com/signup.",
+    "termsOfService": "https://prismareviews.com/terms",
+    "contact": {
+      "name": "Prisma Reviews",
+      "url": "https://prismareviews.com",
+      "email": "hello@prismareviews.com"
+    },
+    "x-logo": {
+      "url": "https://prismareviews.com/favicon.svg",
+      "altText": "Prisma Reviews"
+    }
+  },
+  "externalDocs": {
+    "description": "Prisma Reviews API reference",
+    "url": "https://prismareviews.com/docs/api-reference"
+  },
+  "servers": [
+    {
+      "url": "https://api.prismareviews.com",
+      "description": "Production (live and test keys)"
+    }
+  ],
+  "security": [
+    {
+      "apiKey": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Reviews",
+      "description": "Reviews from every connected location, in one JSON shape.",
+      "externalDocs": {
+        "description": "Docs",
+        "url": "https://prismareviews.com/docs/api-reference/reviews"
+      }
+    },
+    {
+      "name": "Replies",
+      "description": "Publish and delete replies through each platform's official API.",
+      "externalDocs": {
+        "description": "Docs",
+        "url": "https://prismareviews.com/docs/api-reference/replies"
+      }
+    },
+    {
+      "name": "Locations",
+      "description": "The places, apps, shops and listings that receive reviews.",
+      "externalDocs": {
+        "description": "Docs",
+        "url": "https://prismareviews.com/docs/api-reference/locations"
+      }
+    },
+    {
+      "name": "Connections",
+      "description": "Connect platform accounts by OAuth, credentials or listing URL, or with a connect link.",
+      "externalDocs": {
+        "description": "Docs",
+        "url": "https://prismareviews.com/docs/api-reference/connections"
+      }
+    },
+    {
+      "name": "Platforms",
+      "description": "How each platform connects, the fields it needs and whether your workspace can connect it.",
+      "externalDocs": {
+        "description": "Docs",
+        "url": "https://prismareviews.com/docs/api-reference/platforms"
+      }
+    },
+    {
+      "name": "Webhooks",
+      "description": "Signed event deliveries to your HTTPS endpoints.",
+      "externalDocs": {
+        "description": "Docs",
+        "url": "https://prismareviews.com/docs/api-reference/webhooks"
+      }
+    },
+    {
+      "name": "Usage",
+      "description": "Your plan and this month's usage.",
+      "externalDocs": {
+        "description": "Docs",
+        "url": "https://prismareviews.com/docs/api-reference/usage"
+      }
+    }
+  ],
+  "paths": {
+    "/v1/reviews": {
+      "get": {
+        "operationId": "listReviews",
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "List reviews",
+        "description": "Reviews of your workspace in the mode of your key, newest first (by `created_at`, then `id`), in the same shape on every platform. Cursor paginated: pass `next_cursor` as `cursor`, with the same filters, until it is `null`.",
+        "parameters": [
+          {
+            "name": "location_id",
+            "in": "query",
+            "description": "Only reviews of this location.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N"
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "description": "Only reviews from this platform.",
+            "schema": {
+              "$ref": "#/components/schemas/PlatformId"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "description": "Only reviews written at or after this time (by `created_at`): a date (`2026-10-01`, midnight UTC) or an ISO 8601 timestamp with a time zone offset (`2026-10-01T00:00:00Z`, `2026-10-01T02:00:00+02:00`).",
+            "schema": {
+              "type": "string",
+              "anyOf": [
+                {
+                  "format": "date"
+                },
+                {
+                  "format": "date-time"
+                }
+              ]
+            },
+            "example": "2026-10-01"
+          },
+          {
+            "name": "has_reply",
+            "in": "query",
+            "description": "`true`: reviews with a reply in any status. `false`: reviews without one.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The `next_cursor` of the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of reviews.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "rev_01KJ8Q2M4T7HX3VB9CWD6NRZ5E",
+                      "platform": "google",
+                      "location_id": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N",
+                      "rating": 4,
+                      "title": null,
+                      "text": "Great flat white, a bit slow at lunchtime.",
+                      "author": "Marta G.",
+                      "language": "en",
+                      "url": null,
+                      "created_at": "2026-10-19T12:41:07.000Z",
+                      "updated_at": "2026-10-19T12:41:07.000Z",
+                      "reply": null
+                    }
+                  ],
+                  "next_cursor": "MjAyNi0xMC0xOVQxMjo0MTowNy4wMDBafHJldl8wMUtKOFEyTTRUN0hYM1ZCOUNXRDZOUlo1RQ"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "description": "An unknown `platform`, a `since` that is neither a date nor a timestamp with offset, a `limit` out of range or a `cursor` that can't be decoded (`invalid_request`). The message names the parameter.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "invalid_request",
+                        "message": "limit: Number must be less than or equal to 100",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#invalid_request"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/reviews"
+        }
+      }
+    },
+    "/v1/reviews/{id}": {
+      "get": {
+        "operationId": "getReview",
+        "tags": [
+          "Reviews"
+        ],
+        "summary": "Get a review",
+        "description": "One review by ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Review ID (`rev_…`).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "rev_01KJ8Q2M4T7HX3VB9CWD6NRZ5E"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The review.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                },
+                "example": {
+                  "id": "rev_01KJ8Q2M4T7HX3VB9CWD6NRZ5E",
+                  "platform": "google",
+                  "location_id": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N",
+                  "rating": 4,
+                  "title": null,
+                  "text": "Great flat white, a bit slow at lunchtime.",
+                  "author": "Marta G.",
+                  "language": "en",
+                  "url": null,
+                  "created_at": "2026-10-19T12:41:07.000Z",
+                  "updated_at": "2026-10-19T12:41:07.000Z",
+                  "reply": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No review with that ID in this workspace and mode (`resource_not_found`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "resource_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "resource_not_found",
+                        "message": "No review with that id in this workspace.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#resource_not_found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/reviews"
+        }
+      }
+    },
+    "/v1/reviews/{id}/reply": {
+      "post": {
+        "operationId": "replyToReview",
+        "tags": [
+          "Replies"
+        ],
+        "summary": "Create or replace a reply",
+        "description": "Stores the reply and queues it for publishing through the platform's official API: `202` with the review and `reply.status: \"queued\"`. A background job publishes it (`reply.published` webhook) or marks it `failed` (`reply.failed` webhook). Posting again replaces the stored reply. With a test key the reply goes through the same steps but never reaches the platform. Read-only platforms return `422 reply_not_supported` with the review's `url`, where it can be answered.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Review ID (`rev_…`).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "rev_01KJ8Q2M4T7HX3VB9CWD6NRZ5E"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "A unique value per reply (a UUID works). The same key with the same request returns the stored response instead of replying twice; with a different request it returns `409 idempotency_conflict`. Scoped to the workspace; only successful responses are stored.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 10000,
+                    "description": "Reply text, trimmed. 1 to 10,000 characters; the platform's own limit also applies (Google Business Profile 4,096 bytes, App Store 5,970 characters, Google Play 350, eBay 80)."
+                  }
+                }
+              },
+              "example": {
+                "text": "Thanks Marta! We have added a second barista at lunch."
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Reply queued. The body is the review with its new `reply`.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                },
+                "example": {
+                  "id": "rev_01KJ8Q2M4T7HX3VB9CWD6NRZ5E",
+                  "platform": "google",
+                  "location_id": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N",
+                  "rating": 4,
+                  "title": null,
+                  "text": "Great flat white, a bit slow at lunchtime.",
+                  "author": "Marta G.",
+                  "language": "en",
+                  "url": null,
+                  "created_at": "2026-10-19T12:41:07.000Z",
+                  "updated_at": "2026-10-19T12:41:07.000Z",
+                  "reply": {
+                    "text": "Thanks Marta! We have added a second barista at lunch.",
+                    "created_at": null,
+                    "status": "queued",
+                    "error": null
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No review with that ID in this workspace and mode (`resource_not_found`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "resource_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "resource_not_found",
+                        "message": "No review with that id in this workspace.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#resource_not_found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The `Idempotency-Key` was used with a different request, or the connection of the review's location is not `active` (reconnect it, then retry).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "idempotency_conflict": {
+                    "value": {
+                      "error": {
+                        "type": "conflict_error",
+                        "code": "idempotency_conflict",
+                        "message": "This Idempotency-Key was already used with a different request.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#idempotency_conflict"
+                      }
+                    }
+                  },
+                  "connection_reauth_required": {
+                    "value": {
+                      "error": {
+                        "type": "conflict_error",
+                        "code": "connection_reauth_required",
+                        "message": "The connection for this location is not active. Reconnect it and try again.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#connection_reauth_required",
+                        "connection_id": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`text` missing or empty, a body that isn't valid JSON (`invalid_request`), a read-only platform (`reply_not_supported`, with `platform` and `url`) or a text over the platform's limit (`reply_too_long`, with `platform` and `max_length`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "invalid_request",
+                        "message": "text: String must contain at least 1 character(s)",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#invalid_request"
+                      }
+                    }
+                  },
+                  "reply_not_supported": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "reply_not_supported",
+                        "message": "Yelp has no reply API for third parties, so Prisma only reads its reviews. Answer this one on the platform: https://www.yelp.com/biz/example-cafe-madrid",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#reply_not_supported",
+                        "platform": "yelp",
+                        "url": "https://www.yelp.com/biz/example-cafe-madrid"
+                      }
+                    }
+                  },
+                  "reply_too_long": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "reply_too_long",
+                        "message": "Google Play accepts replies of up to 350 characters.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#reply_too_long",
+                        "platform": "google_play",
+                        "max_length": 350
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/replies"
+        }
+      },
+      "delete": {
+        "operationId": "deleteReply",
+        "tags": [
+          "Replies"
+        ],
+        "summary": "Delete a reply",
+        "description": "Queues the removal of the review's reply from the platform. When the job is done, `reply` becomes `null`. Only on platforms whose API can delete replies (Google Business Profile, App Store, Trustpilot).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Review ID (`rev_…`).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "rev_01KJ8Q2M4T7HX3VB9CWD6NRZ5E"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Deletion queued.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyDeletion"
+                },
+                "example": {
+                  "id": "rev_01KJ8Q2M4T7HX3VB9CWD6NRZ5E",
+                  "deleted": false,
+                  "status": "queued"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No review with that ID in this workspace and mode (`resource_not_found`), or the review has no reply (`reply_not_found`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "resource_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "resource_not_found",
+                        "message": "No review with that id in this workspace.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#resource_not_found"
+                      }
+                    }
+                  },
+                  "reply_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "reply_not_found",
+                        "message": "This review has no reply.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#reply_not_found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The platform is read only (`reply_not_supported`, with `platform` and `url`) or its API can't delete replies (`operation_not_supported`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "reply_not_supported": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "reply_not_supported",
+                        "message": "Yelp has no reply API for third parties, so Prisma only reads its reviews. Answer this one on the platform: https://www.yelp.com/biz/example-cafe-madrid",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#reply_not_supported",
+                        "platform": "yelp",
+                        "url": "https://www.yelp.com/biz/example-cafe-madrid"
+                      }
+                    }
+                  },
+                  "operation_not_supported": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "operation_not_supported",
+                        "message": "Google Play doesn't allow deleting replies through its API. You can edit the reply instead.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#operation_not_supported"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/replies"
+        }
+      }
+    },
+    "/v1/locations": {
+      "get": {
+        "operationId": "listLocations",
+        "tags": [
+          "Locations"
+        ],
+        "summary": "List locations",
+        "description": "Every location of your workspace in the mode of your key, oldest first, without disconnected ones. Not paginated: `next_cursor` is always `null`.",
+        "responses": {
+          "200": {
+            "description": "All locations.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N",
+                      "platform": "google",
+                      "connection_id": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B",
+                      "name": "Café Ruzafa",
+                      "address": "Carrer de Sueca 10, Valencia",
+                      "url": "https://maps.google.com/?cid=1234567890",
+                      "external_id": "accounts/1234567890/locations/9876543210",
+                      "status": "active",
+                      "last_synced_at": "2026-10-23T08:00:12.000Z",
+                      "next_sync_at": "2026-10-24T08:00:12.000Z"
+                    }
+                  ],
+                  "next_cursor": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/locations"
+        }
+      }
+    },
+    "/v1/locations/{id}": {
+      "get": {
+        "operationId": "getLocation",
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Get a location",
+        "description": "One location by ID, disconnected ones included until their data is deleted.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Location ID (`loc_…`).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The location.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Location"
+                },
+                "example": {
+                  "id": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N",
+                  "platform": "google",
+                  "connection_id": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B",
+                  "name": "Café Ruzafa",
+                  "address": "Carrer de Sueca 10, Valencia",
+                  "url": "https://maps.google.com/?cid=1234567890",
+                  "external_id": "accounts/1234567890/locations/9876543210",
+                  "status": "active",
+                  "last_synced_at": "2026-10-23T08:00:12.000Z",
+                  "next_sync_at": "2026-10-24T08:00:12.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No location with that ID in this workspace and mode (`resource_not_found`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "resource_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "resource_not_found",
+                        "message": "No location with that id in this workspace.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#resource_not_found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/locations"
+        }
+      }
+    },
+    "/v1/locations/{id}/refresh": {
+      "post": {
+        "operationId": "refreshLocation",
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Refresh a location",
+        "description": "Checks one location for new reviews now instead of waiting for its next scheduled check (\"Refresh now\"). From the Beam plan; at most once every 15 minutes per location. New reviews arrive as usual, in `GET /v1/reviews` and as `review.created` webhooks.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Location ID (`loc_…`).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Check queued. The body is the location plus `refresh: \"queued\"`.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationRefresh"
+                },
+                "example": {
+                  "id": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N",
+                  "platform": "google",
+                  "connection_id": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B",
+                  "name": "Café Ruzafa",
+                  "address": "Carrer de Sueca 10, Valencia",
+                  "url": "https://maps.google.com/?cid=1234567890",
+                  "external_id": "accounts/1234567890/locations/9876543210",
+                  "status": "active",
+                  "last_synced_at": "2026-10-23T08:00:12.000Z",
+                  "next_sync_at": "2026-10-24T08:00:12.000Z",
+                  "refresh": "queued"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The plan has no Refresh now (Spark, `feature: \"refresh_now\"`) or doesn't include the location's platform (`feature: \"platform\"`), both `plan_feature_unavailable` with `upgrade_url`; or the account is suspended (`account_suspended`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "plan_feature_unavailable": {
+                    "value": {
+                      "error": {
+                        "type": "permission_error",
+                        "code": "plan_feature_unavailable",
+                        "message": "Refresh now isn't included in the free Spark plan: it starts at Beam. Spark locations are checked on their regular schedule.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#plan_feature_unavailable",
+                        "feature": "refresh_now",
+                        "upgrade_url": "https://app.prismareviews.com/plan"
+                      }
+                    }
+                  },
+                  "account_suspended": {
+                    "value": {
+                      "error": {
+                        "type": "permission_error",
+                        "code": "account_suspended",
+                        "message": "This account is suspended. Write to hello@prismareviews.com.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#account_suspended"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No location with that ID in this workspace and mode (`resource_not_found`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "resource_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "resource_not_found",
+                        "message": "No location with that id in this workspace.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#resource_not_found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The location is not active (disconnected).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "location_inactive": {
+                    "value": {
+                      "error": {
+                        "type": "conflict_error",
+                        "code": "location_inactive",
+                        "message": "This location is not active.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#location_inactive"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Over the API rate limit (`rate_limited`), or the location was checked less than 15 minutes ago (`refresh_too_soon`). `Retry-After` says when to try again.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "refresh_too_soon": {
+                    "value": {
+                      "error": {
+                        "type": "rate_limit_error",
+                        "code": "refresh_too_soon",
+                        "message": "This location was checked less than 15 minutes ago. Try again in 540 s.",
+                        "retryable": true,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#refresh_too_soon"
+                      }
+                    }
+                  },
+                  "rate_limited": {
+                    "value": {
+                      "error": {
+                        "type": "rate_limit_error",
+                        "code": "rate_limited",
+                        "message": "Rate limit of 60 requests per minute exceeded. Retry in 12 s. Requests over the limit are never billed.",
+                        "retryable": true,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#rate_limited"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/locations"
+        }
+      }
+    },
+    "/v1/connections": {
+      "post": {
+        "operationId": "createConnection",
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Create a connection",
+        "description": "Connects one platform account and imports its locations. How depends on the platform (see `GET /v1/platforms`): `oauth` platforms need `redirect_url` and return `status: \"pending\"` with an `authorization_url` for the owner; `credentials` platforms need `credentials`, which Prisma tries against the platform before storing anything; `listing_url` platforms need the public `listing_url` of the listing. With a test key any platform connects at once, without credentials, with sample locations and reviews. Locations over the plan limit are not created and are counted in `locations_over_plan_limit`. Not idempotent: retrying creates a second connection.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionInput"
+              },
+              "examples": {
+                "oauth": {
+                  "summary": "OAuth (Google Business Profile)",
+                  "value": {
+                    "platform": "google",
+                    "redirect_url": "https://yourapp.com/prisma/callback",
+                    "metadata": {
+                      "client": "acme"
+                    }
+                  }
+                },
+                "credentials": {
+                  "summary": "Credentials (Judge.me)",
+                  "value": {
+                    "platform": "judge_me",
+                    "credentials": {
+                      "shop_domain": "example-store.myshopify.com",
+                      "api_token": "your-judge-me-api-token"
+                    }
+                  }
+                },
+                "listing_url": {
+                  "summary": "Listing URL (Yelp)",
+                  "value": {
+                    "platform": "yelp",
+                    "listing_url": "https://www.yelp.com/biz/example-cafe-san-francisco"
+                  }
+                },
+                "test": {
+                  "summary": "Any platform with a test key",
+                  "value": {
+                    "platform": "trustpilot"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new connection, plus `authorization_url` (OAuth) or `locations_created` and `locations_over_plan_limit`.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionCreated"
+                },
+                "example": {
+                  "id": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B",
+                  "platform": "google",
+                  "status": "pending",
+                  "metadata": {
+                    "client": "acme"
+                  },
+                  "created_at": "2026-10-21T08:55:00.000Z",
+                  "updated_at": "2026-10-21T08:55:00.000Z",
+                  "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=...&state=..."
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The platform isn't in your plan (`plan_feature_unavailable`, with `platform`, `feature` and `upgrade_url`), isn't enabled for your account yet (`platform_not_enabled`), or the account is suspended (`account_suspended`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "plan_feature_unavailable": {
+                    "value": {
+                      "error": {
+                        "type": "permission_error",
+                        "code": "plan_feature_unavailable",
+                        "message": "Yelp isn't included in the free Spark plan: it starts at Beam, or add a read pack to Spark from the Plan page.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#plan_feature_unavailable",
+                        "platform": "yelp",
+                        "feature": "platform",
+                        "upgrade_url": "https://app.prismareviews.com/plan"
+                      }
+                    }
+                  },
+                  "platform_not_enabled": {
+                    "value": {
+                      "error": {
+                        "type": "permission_error",
+                        "code": "platform_not_enabled",
+                        "message": "G2 isn't available for your account yet. Write to hello@prismareviews.com to get early access.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#platform_not_enabled",
+                        "platform": "g2"
+                      }
+                    }
+                  },
+                  "account_suspended": {
+                    "value": {
+                      "error": {
+                        "type": "permission_error",
+                        "code": "account_suspended",
+                        "message": "This account is suspended. Write to hello@prismareviews.com.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#account_suspended"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown `platform` (with `platforms_url`), a missing `redirect_url`, `credentials` or `listing_url`, a listing URL from another site or a body that isn't valid JSON (`invalid_request`); credentials with the wrong shape or rejected by the platform (`invalid_credentials`). Errors about a known platform carry `required_fields`, `example` and `setup`.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "invalid_request",
+                        "message": "listing_url is required to connect Yelp: the public page of the listing.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#invalid_request",
+                        "platform": "yelp",
+                        "required_fields": [
+                          "listing_url"
+                        ],
+                        "example": {
+                          "platform": "yelp",
+                          "listing_url": "https://www.yelp.com/biz/example-cafe-madrid"
+                        },
+                        "setup": "https://api.prismareviews.com/v1/platforms/yelp"
+                      }
+                    }
+                  },
+                  "invalid_credentials": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "invalid_credentials",
+                        "message": "Judge.me rejected these credentials: invalid api token",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#invalid_credentials",
+                        "platform": "judge_me",
+                        "required_fields": [
+                          "credentials.shop_domain",
+                          "credentials.api_token"
+                        ],
+                        "example": {
+                          "platform": "judge_me",
+                          "credentials": {
+                            "shop_domain": "example-store.myshopify.com",
+                            "api_token": "…"
+                          }
+                        },
+                        "setup": "https://api.prismareviews.com/v1/platforms/judge_me"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "description": "The platform can't be connected with live keys yet (`live_ready: false` in `GET /v1/platforms`). Test keys work.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "platform_not_available": {
+                    "value": {
+                      "error": {
+                        "type": "api_error",
+                        "code": "platform_not_available",
+                        "message": "Trustpilot isn't open yet with live keys. It opens soon; meanwhile a test key shows how it works.",
+                        "retryable": true,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#platform_not_available",
+                        "platform": "trustpilot"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/connections"
+        }
+      },
+      "get": {
+        "operationId": "listConnections",
+        "tags": [
+          "Connections"
+        ],
+        "summary": "List connections",
+        "description": "Every connection of your workspace in the mode of your key, oldest first, including `pending`, `reauth_required` and `disconnected` ones. Not paginated: `next_cursor` is always `null`.",
+        "responses": {
+          "200": {
+            "description": "All connections.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B",
+                      "platform": "google",
+                      "status": "active",
+                      "metadata": {
+                        "client": "acme"
+                      },
+                      "created_at": "2026-10-21T08:55:00.000Z",
+                      "updated_at": "2026-10-21T08:56:41.000Z"
+                    }
+                  ],
+                  "next_cursor": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/connections"
+        }
+      }
+    },
+    "/v1/connections/{id}": {
+      "delete": {
+        "operationId": "deleteConnection",
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Delete a connection",
+        "description": "Disconnects the connection: its stored tokens and credentials are deleted at once and its locations become `disconnected` (no more checks, not counted toward the plan). Their reviews stay readable for 30 days and are then deleted. To reauthorize a connection, delete it and create a new one.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Connection ID (`con_…`).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The disconnected connection, plus `locations_disconnected`.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionDeleted"
+                },
+                "example": {
+                  "id": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B",
+                  "platform": "google",
+                  "status": "disconnected",
+                  "metadata": {
+                    "client": "acme"
+                  },
+                  "created_at": "2026-10-21T08:55:00.000Z",
+                  "updated_at": "2026-10-21T08:56:41.000Z",
+                  "locations_disconnected": 3
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No connection with that ID in this workspace and mode (`resource_not_found`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "resource_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "resource_not_found",
+                        "message": "No connection with that id in this workspace.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#resource_not_found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/connections"
+        }
+      }
+    },
+    "/v1/platforms": {
+      "get": {
+        "operationId": "listPlatforms",
+        "tags": [
+          "Platforms"
+        ],
+        "summary": "List platforms",
+        "description": "Every platform with how it connects, the exact fields `POST /v1/connections` expects, setup steps for the account owner, an example body and whether this workspace can connect it now. Enough to connect a platform without reading the docs.",
+        "responses": {
+          "200": {
+            "description": "All platforms.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/connections#discover-what-each-platform-needs"
+        }
+      }
+    },
+    "/v1/platforms/{id}": {
+      "get": {
+        "operationId": "getPlatform",
+        "tags": [
+          "Platforms"
+        ],
+        "summary": "Get a platform",
+        "description": "One platform of `GET /v1/platforms`.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Platform ID.",
+            "schema": {
+              "$ref": "#/components/schemas/PlatformId"
+            },
+            "example": "app_store"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The platform.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Platform"
+                },
+                "example": {
+                  "id": "app_store",
+                  "name": "App Store",
+                  "connect": "credentials",
+                  "reply": "api",
+                  "in_your_plan": true,
+                  "available": true,
+                  "live_ready": true,
+                  "live_note": null,
+                  "summary": "An App Store Connect API key with the Customer Support role. Prisma never sees your Apple ID.",
+                  "steps": [
+                    "In App Store Connect open Users and Access → Integrations → App Store Connect API."
+                  ],
+                  "console_url": "https://appstoreconnect.apple.com/access/integrations/api",
+                  "fields": [
+                    {
+                      "name": "issuer_id",
+                      "label": "Issuer ID",
+                      "type": "text",
+                      "required": true,
+                      "placeholder": "57246542-96fe-1a63-e053-0824d011072a",
+                      "help": "The UUID above the list of keys."
+                    }
+                  ],
+                  "example": {
+                    "platform": "app_store",
+                    "credentials": {
+                      "issuer_id": "…",
+                      "key_id": "…",
+                      "private_key": "…"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No platform with that ID.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "resource_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "resource_not_found",
+                        "message": "No platform with that id. Use one of: google, app_store, google_play, judge_me, trustpilot, google_maps, yelp, tripadvisor, booking, yotpo, reviews_io, g2, ebay, etsy, steam, okendo, feefo, trusted_shops, ekomi, loox, proven_expert, shopper_approved, wordpress, appexchange, facebook, opentable, doordash, angi, checkatrade, avvo, capterra, apartments.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#resource_not_found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/connections#discover-what-each-platform-needs"
+        }
+      }
+    },
+    "/v1/connect_links": {
+      "post": {
+        "operationId": "createConnectLink",
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Create a connect link",
+        "description": "A link the owner of a platform account opens to connect it in their browser, with no Prisma account or API key. Connections made through it belong to your workspace and to the mode of the key that created the link, and carry `metadata: {\"via\": \"connect_link\"}`. Valid for 7 days and reusable: treat it like a password-reset link. The body is optional.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "platform": {
+                    "$ref": "#/components/schemas/PlatformId",
+                    "description": "Only this platform. Without it, the owner chooses among the platforms of your plan."
+                  },
+                  "redirect_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Where to send the owner when they are done, with `connection_id` and `status` added to the query string. Must start with `https://` (or `http://localhost` for development)."
+                  }
+                }
+              },
+              "example": {
+                "platform": "google",
+                "redirect_url": "https://yourapp.com/connected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The connect link.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectLink"
+                },
+                "example": {
+                  "url": "https://app.prismareviews.com/connect/cl_eyJ3Ijoid3NfMDFL…",
+                  "platform": "google",
+                  "mode": "live",
+                  "expires_at": "2026-11-02T17:40:00.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "description": "Unknown `platform`, or a `redirect_url` that isn't a URL or doesn't use https (`invalid_request`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "invalid_request",
+                        "message": "limit: Number must be less than or equal to 100",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#invalid_request"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/connections#connect-links"
+        }
+      }
+    },
+    "/v1/webhooks": {
+      "post": {
+        "operationId": "createWebhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Register a webhook endpoint",
+        "description": "Registers an HTTPS endpoint for signed event deliveries. The signing `secret` is returned only in this response. Endpoints belong to the workspace, not to a key: they receive events from both live and test mode. Not idempotent: retrying creates a second endpoint.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "^https://",
+                    "description": "Your endpoint. Must start with `https://`."
+                  },
+                  "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "default": [
+                      "*"
+                    ],
+                    "items": {
+                      "$ref": "#/components/schemas/WebhookEventFilter"
+                    },
+                    "description": "Event types to receive, or `[\"*\"]` for all of them (the default)."
+                  }
+                }
+              },
+              "example": {
+                "url": "https://yourapp.com/webhooks/prisma",
+                "events": [
+                  "review.created",
+                  "reply.failed",
+                  "connection.updated"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The endpoint, with its signing secret.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookCreated"
+                },
+                "example": {
+                  "id": "we_01KJ8R1A3B5C7D9E1F3G5H7J9K",
+                  "url": "https://yourapp.com/webhooks/prisma",
+                  "events": [
+                    "review.created",
+                    "reply.failed",
+                    "connection.updated"
+                  ],
+                  "secret": "whsec_3q2Xk9LmP0aB7cD1eF4gH6jK8mN2pQ5r",
+                  "created_at": "2026-10-21T09:20:00.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "description": "`url` missing, not a URL or not https, an unknown event type, an empty `events` array or a body that isn't valid JSON (`invalid_request`).",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": {
+                        "type": "invalid_request_error",
+                        "code": "invalid_request",
+                        "message": "limit: Number must be less than or equal to 100",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#invalid_request"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/webhooks"
+        }
+      },
+      "get": {
+        "operationId": "listWebhooks",
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "List webhook endpoints",
+        "description": "Every webhook endpoint of the workspace (shared by live and test keys). Secrets are never returned.",
+        "responses": {
+          "200": {
+            "description": "All endpoints.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "we_01KJ8R1A3B5C7D9E1F3G5H7J9K",
+                      "url": "https://yourapp.com/webhooks/prisma",
+                      "events": [
+                        "*"
+                      ],
+                      "active": true,
+                      "created_at": "2026-10-21T09:20:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/webhooks"
+        }
+      }
+    },
+    "/v1/webhooks/{id}": {
+      "delete": {
+        "operationId": "deleteWebhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Delete a webhook endpoint",
+        "description": "Deletes the endpoint; deliveries still pending for it are dropped. There is no update: create a new endpoint and delete the old one.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Webhook endpoint ID (`we_…`).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "we_01KJ8R1A3B5C7D9E1F3G5H7J9K"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeleted"
+                },
+                "example": {
+                  "id": "we_01KJ8R1A3B5C7D9E1F3G5H7J9K",
+                  "deleted": true
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No webhook endpoint with that ID in this workspace.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "resource_not_found": {
+                    "value": {
+                      "error": {
+                        "type": "not_found_error",
+                        "code": "resource_not_found",
+                        "message": "No webhook endpoint with that id in this workspace.",
+                        "retryable": false,
+                        "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                        "docs_url": "https://prismareviews.com/docs/errors#resource_not_found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/webhooks"
+        }
+      }
+    },
+    "/v1/usage": {
+      "get": {
+        "operationId": "getUsage",
+        "tags": [
+          "Usage"
+        ],
+        "summary": "Get usage",
+        "description": "The workspace's plan and what it has used in the current calendar month (UTC). The same numbers with a live key and a test key.",
+        "responses": {
+          "200": {
+            "description": "Usage this month.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/Request-Id"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usage"
+                },
+                "example": {
+                  "plan": "beam",
+                  "period": "2026-10",
+                  "locations": {
+                    "used": 7,
+                    "limit": 10
+                  },
+                  "requests": 18234,
+                  "requests_per_minute_limit": 120,
+                  "replies_published": 412,
+                  "paid_reads": {
+                    "used": 640,
+                    "limit": 2500
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Maintenance"
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/usage"
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "review.created": {
+      "post": {
+        "operationId": "webhook_review_created",
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "review.created",
+        "description": "A new review was found on a connected location. Sent as a signed `POST` to every endpoint subscribed to `review.created` or `*`. Answer with any 2xx within 10 seconds; failed deliveries are retried with exponential backoff within your plan's retry window.",
+        "parameters": [
+          {
+            "name": "Prisma-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint secret>`. Reject timestamps more than 5 minutes off.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "User-Agent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "Prisma-Webhooks/1"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEvent"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "const": "review.created"
+                      },
+                      "data": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "location_id",
+                          "platform"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Review ID."
+                          },
+                          "location_id": {
+                            "type": "string",
+                            "description": "Location ID."
+                          },
+                          "platform": {
+                            "$ref": "#/components/schemas/PlatformId"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Any other status, a timeout or a connection error is retried."
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/webhooks#the-delivery"
+        }
+      }
+    },
+    "review.updated": {
+      "post": {
+        "operationId": "webhook_review_updated",
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "review.updated",
+        "description": "A review's content changed on the platform, or a reply appeared or changed there. Sent as a signed `POST` to every endpoint subscribed to `review.updated` or `*`. Answer with any 2xx within 10 seconds; failed deliveries are retried with exponential backoff within your plan's retry window.",
+        "parameters": [
+          {
+            "name": "Prisma-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint secret>`. Reject timestamps more than 5 minutes off.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "User-Agent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "Prisma-Webhooks/1"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEvent"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "const": "review.updated"
+                      },
+                      "data": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "location_id",
+                          "platform"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Review ID."
+                          },
+                          "location_id": {
+                            "type": "string",
+                            "description": "Location ID."
+                          },
+                          "platform": {
+                            "$ref": "#/components/schemas/PlatformId"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Any other status, a timeout or a connection error is retried."
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/webhooks#the-delivery"
+        }
+      }
+    },
+    "reply.published": {
+      "post": {
+        "operationId": "webhook_reply_published",
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "reply.published",
+        "description": "A reply sent through Prisma is live on the platform. Sent as a signed `POST` to every endpoint subscribed to `reply.published` or `*`. Answer with any 2xx within 10 seconds; failed deliveries are retried with exponential backoff within your plan's retry window.",
+        "parameters": [
+          {
+            "name": "Prisma-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint secret>`. Reject timestamps more than 5 minutes off.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "User-Agent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "Prisma-Webhooks/1"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEvent"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "const": "reply.published"
+                      },
+                      "data": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "location_id",
+                          "platform"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Review ID."
+                          },
+                          "location_id": {
+                            "type": "string",
+                            "description": "Location ID."
+                          },
+                          "platform": {
+                            "$ref": "#/components/schemas/PlatformId"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Any other status, a timeout or a connection error is retried."
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/webhooks#the-delivery"
+        }
+      }
+    },
+    "reply.failed": {
+      "post": {
+        "operationId": "webhook_reply_failed",
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "reply.failed",
+        "description": "The platform refused a reply, or every retry failed. Sent as a signed `POST` to every endpoint subscribed to `reply.failed` or `*`. Answer with any 2xx within 10 seconds; failed deliveries are retried with exponential backoff within your plan's retry window.",
+        "parameters": [
+          {
+            "name": "Prisma-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint secret>`. Reject timestamps more than 5 minutes off.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "User-Agent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "Prisma-Webhooks/1"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEvent"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "const": "reply.failed"
+                      },
+                      "data": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "platform",
+                          "error"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Review ID."
+                          },
+                          "platform": {
+                            "$ref": "#/components/schemas/PlatformId"
+                          },
+                          "error": {
+                            "type": "string",
+                            "description": "The platform's answer (up to 500 characters)."
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Any other status, a timeout or a connection error is retried."
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/webhooks#the-delivery"
+        }
+      }
+    },
+    "connection.updated": {
+      "post": {
+        "operationId": "webhook_connection_updated",
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "connection.updated",
+        "description": "An OAuth connection became `active`, or a connection became `reauth_required`. Sent as a signed `POST` to every endpoint subscribed to `connection.updated` or `*`. Answer with any 2xx within 10 seconds; failed deliveries are retried with exponential backoff within your plan's retry window.",
+        "parameters": [
+          {
+            "name": "Prisma-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint secret>`. Reject timestamps more than 5 minutes off.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "User-Agent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "Prisma-Webhooks/1"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEvent"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "const": "connection.updated"
+                      },
+                      "data": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "platform",
+                          "status"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Connection ID."
+                          },
+                          "platform": {
+                            "$ref": "#/components/schemas/PlatformId"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "reauth_required"
+                            ]
+                          },
+                          "locations_created": {
+                            "type": "integer",
+                            "description": "When it became `active`."
+                          },
+                          "reason": {
+                            "type": "string",
+                            "description": "When it became `reauth_required`."
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Any other status, a timeout or a connection error is retried."
+          }
+        },
+        "externalDocs": {
+          "description": "Docs",
+          "url": "https://prismareviews.com/docs/api-reference/webhooks#the-delivery"
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "pk_live_… / pk_test_…",
+        "description": "Your secret API key as a Bearer token: `pk_live_…` for real accounts, `pk_test_…` for sample data. Keep it on your server."
+      }
+    },
+    "headers": {
+      "Request-Id": {
+        "description": "The `req_…` ID of the request. Include it when you contact support.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "X-RateLimit-Limit": {
+        "description": "Requests allowed per minute for this key.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "X-RateLimit-Remaining": {
+        "description": "Requests left in the current one-minute window.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "No API key or one not shaped like a Prisma key (`missing_api_key`), or a key that doesn't exist or was revoked (`invalid_api_key`).",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/Request-Id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "missing_api_key": {
+                "value": {
+                  "error": {
+                    "type": "authentication_error",
+                    "code": "missing_api_key",
+                    "message": "Send your API key as \"Authorization: Bearer pk_live_…\".",
+                    "retryable": false,
+                    "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                    "docs_url": "https://prismareviews.com/docs/errors#missing_api_key"
+                  }
+                }
+              },
+              "invalid_api_key": {
+                "value": {
+                  "error": {
+                    "type": "authentication_error",
+                    "code": "invalid_api_key",
+                    "message": "This API key does not exist or was revoked.",
+                    "retryable": false,
+                    "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                    "docs_url": "https://prismareviews.com/docs/errors#invalid_api_key"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The account is suspended.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/Request-Id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "account_suspended": {
+                "value": {
+                  "error": {
+                    "type": "permission_error",
+                    "code": "account_suspended",
+                    "message": "This account is suspended. Write to hello@prismareviews.com.",
+                    "retryable": false,
+                    "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                    "docs_url": "https://prismareviews.com/docs/errors#account_suspended"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "More requests this minute than the plan allows for this key. Not counted in usage.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/Request-Id"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/Retry-After"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "rate_limited": {
+                "value": {
+                  "error": {
+                    "type": "rate_limit_error",
+                    "code": "rate_limited",
+                    "message": "Rate limit of 60 requests per minute exceeded. Retry in 12 s. Requests over the limit are never billed.",
+                    "retryable": true,
+                    "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                    "docs_url": "https://prismareviews.com/docs/errors#rate_limited"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Something failed on Prisma's side. Retryable.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/Request-Id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "internal_error": {
+                "value": {
+                  "error": {
+                    "type": "api_error",
+                    "code": "internal_error",
+                    "message": "Something went wrong on our side. It has been logged; try again.",
+                    "retryable": true,
+                    "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                    "docs_url": "https://prismareviews.com/docs/errors#internal_error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Maintenance": {
+        "description": "Prisma is under maintenance and the API is paused. Retryable.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/Request-Id"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/Retry-After"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "maintenance": {
+                "value": {
+                  "error": {
+                    "type": "api_error",
+                    "code": "maintenance",
+                    "message": "Prisma is under maintenance. Try again in a few minutes; see https://prismareviews.com/status.",
+                    "retryable": true,
+                    "request_id": "req_01KJ8T3C5D7E9F1G3H5J7K9M1N",
+                    "docs_url": "https://prismareviews.com/docs/errors#maintenance"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "PlatformId": {
+        "type": "string",
+        "enum": [
+          "google",
+          "app_store",
+          "google_play",
+          "judge_me",
+          "trustpilot",
+          "google_maps",
+          "yelp",
+          "tripadvisor",
+          "booking",
+          "yotpo",
+          "reviews_io",
+          "g2",
+          "ebay",
+          "etsy",
+          "steam",
+          "okendo",
+          "feefo",
+          "trusted_shops",
+          "ekomi",
+          "loox",
+          "proven_expert",
+          "shopper_approved",
+          "wordpress",
+          "appexchange",
+          "facebook",
+          "opentable",
+          "doordash",
+          "angi",
+          "checkatrade",
+          "avvo",
+          "capterra",
+          "apartments"
+        ],
+        "description": "Platform ID.\n\n| ID | Platform | Connects with | Replies |\n| --- | --- | --- | --- |\n| `google` | Google Business Profile | oauth | by API |\n| `app_store` | App Store | credentials | by API |\n| `google_play` | Google Play | credentials | by API |\n| `judge_me` | Judge.me | credentials | by API |\n| `trustpilot` | Trustpilot | oauth | by API |\n| `google_maps` | Google Maps | listing_url | read only |\n| `yelp` | Yelp | listing_url | read only |\n| `tripadvisor` | Tripadvisor | listing_url | read only |\n| `booking` | Booking.com | listing_url | read only |\n| `yotpo` | Yotpo | credentials | read only |\n| `reviews_io` | REVIEWS.io | credentials | read only |\n| `g2` | G2 | credentials | read only |\n| `ebay` | eBay | oauth | by API |\n| `etsy` | Etsy | listing_url | read only |\n| `steam` | Steam | listing_url | read only |\n| `okendo` | Okendo | credentials | read only |\n| `feefo` | Feefo | credentials | read only |\n| `trusted_shops` | Trusted Shops | credentials | by API |\n| `ekomi` | eKomi | credentials | by API |\n| `loox` | Loox | credentials | read only |\n| `proven_expert` | ProvenExpert | credentials | read only |\n| `shopper_approved` | Shopper Approved | credentials | read only |\n| `wordpress` | WordPress.org | listing_url | read only |\n| `appexchange` | Salesforce AppExchange | listing_url | read only |\n| `facebook` | Facebook | listing_url | read only |\n| `opentable` | OpenTable | listing_url | read only |\n| `doordash` | DoorDash | listing_url | read only |\n| `angi` | Angi | listing_url | read only |\n| `checkatrade` | Checkatrade | listing_url | read only |\n| `avvo` | Avvo | listing_url | read only |\n| `capterra` | Capterra | listing_url | read only |\n| `apartments` | Apartments.com | listing_url | read only |"
+      },
+      "Reply": {
+        "type": "object",
+        "required": [
+          "text",
+          "created_at",
+          "status",
+          "error"
+        ],
+        "description": "The business reply to a review.",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Reply text."
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the reply was published. `null` while a first reply is queued; when a reply is replaced, it keeps the previous value until the new one is published."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "published",
+              "queued",
+              "failed",
+              null
+            ],
+            "description": "`published` (live on the platform, whoever wrote it), `queued` (sent through Prisma, waiting to be published) or `failed` (the platform refused it; see `error`)."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why publishing failed, when `status` is `failed`."
+          }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "required": [
+          "id",
+          "platform",
+          "location_id",
+          "rating",
+          "title",
+          "text",
+          "author",
+          "language",
+          "url",
+          "created_at",
+          "updated_at",
+          "reply"
+        ],
+        "description": "One customer review, in the same shape on every platform.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Review ID (`rev_…`).",
+            "example": "rev_01KJ8Q2M4T7HX3VB9CWD6NRZ5E"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformId"
+          },
+          "location_id": {
+            "type": "string",
+            "description": "The location the review belongs to (`loc_…`)."
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 5,
+            "description": "1 to 5 stars. `null` if the platform gave no rating."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Review title, on platforms that have one."
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Review body. `null` for rating-only reviews."
+          },
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Display name as shown by the platform."
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Language code when the platform provides one."
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "Public link to the review when the platform provides one. On read-only platforms, where to answer it."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the review was written on the platform."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was last edited on the platform."
+          },
+          "reply": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Reply"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The business reply, or `null`."
+          }
+        }
+      },
+      "ReviewList": {
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "description": "A page of reviews.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor`, with the same filters, for the next page. `null` on the last page."
+          }
+        }
+      },
+      "ReplyDeletion": {
+        "type": "object",
+        "required": [
+          "id",
+          "deleted",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Review ID."
+          },
+          "deleted": {
+            "type": "boolean",
+            "const": false,
+            "description": "Always `false`: the deletion is queued."
+          },
+          "status": {
+            "type": "string",
+            "const": "queued"
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "required": [
+          "id",
+          "platform",
+          "connection_id",
+          "name",
+          "address",
+          "url",
+          "external_id",
+          "status",
+          "last_synced_at",
+          "next_sync_at"
+        ],
+        "description": "One thing that receives reviews on one platform: a place, an app, a shop, a listing.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Location ID (`loc_…`).",
+            "example": "loc_01KJ8P9W2C4D6F8G0H2J4K6M8N"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformId"
+          },
+          "connection_id": {
+            "type": "string",
+            "description": "The connection that created it (`con_…`)."
+          },
+          "name": {
+            "type": "string",
+            "description": "Name on the platform. For listing URL platforms, the listing URL."
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Address for places. For App Store apps, the bundle ID."
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Public page of the location, app or listing, when known."
+          },
+          "external_id": {
+            "type": "string",
+            "description": "The platform's own ID."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disconnected"
+            ]
+          },
+          "last_synced_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Last time Prisma checked it for reviews. `null` until the first sync finishes."
+          },
+          "next_sync_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the next check is scheduled. `null` once disconnected."
+          }
+        }
+      },
+      "LocationList": {
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Location"
+            }
+          },
+          "next_cursor": {
+            "type": "null",
+            "description": "Always `null`: not paginated."
+          }
+        }
+      },
+      "LocationRefresh": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Location"
+          },
+          {
+            "type": "object",
+            "required": [
+              "refresh"
+            ],
+            "properties": {
+              "refresh": {
+                "type": "string",
+                "const": "queued"
+              }
+            }
+          }
+        ]
+      },
+      "Connection": {
+        "type": "object",
+        "required": [
+          "id",
+          "platform",
+          "status",
+          "metadata",
+          "created_at",
+          "updated_at"
+        ],
+        "description": "The access a business gave Prisma to its account on one platform. Credentials and tokens are never returned.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Connection ID (`con_…`).",
+            "example": "con_01KJ8P7R5S3T1V9W7X5Y3Z1A2B"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformId"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "reauth_required",
+              "disconnected"
+            ],
+            "description": "`pending` (waiting for the owner to approve OAuth), `active`, `reauth_required` (the platform rejected the stored token or key) or `disconnected`."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Your own key-value pairs, returned as sent."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it last changed."
+          }
+        }
+      },
+      "ConnectionInput": {
+        "type": "object",
+        "required": [
+          "platform"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "platform": {
+            "$ref": "#/components/schemas/PlatformId",
+            "description": "Platform to connect. An unknown value returns `422 invalid_request`."
+          },
+          "redirect_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Required for `oauth` platforms (live keys): where the owner lands after approving, with `connection_id` and `status` in the query string."
+          },
+          "credentials": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Required for `credentials` platforms, and for Trustpilot (`domain`). Fields per platform in `GET /v1/platforms`."
+          },
+          "listing_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Required for `listing_url` platforms: the public page of the listing."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Your own key-value pairs, for example your client ID."
+          }
+        }
+      },
+      "ConnectionCreated": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Connection"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "authorization_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "`oauth` platforms with a live key: send the account owner here to approve access."
+              },
+              "locations_created": {
+                "type": "integer",
+                "description": "Locations imported (credentials, listing URL and test connections)."
+              },
+              "locations_over_plan_limit": {
+                "type": "integer",
+                "description": "Locations not imported because of the plan limit."
+              }
+            }
+          }
+        ]
+      },
+      "ConnectionDeleted": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Connection"
+          },
+          {
+            "type": "object",
+            "required": [
+              "locations_disconnected"
+            ],
+            "properties": {
+              "locations_disconnected": {
+                "type": "integer",
+                "description": "How many locations were disconnected."
+              }
+            }
+          }
+        ]
+      },
+      "ConnectionList": {
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Connection"
+            }
+          },
+          "next_cursor": {
+            "type": "null",
+            "description": "Always `null`: not paginated."
+          }
+        }
+      },
+      "ConnectLink": {
+        "type": "object",
+        "required": [
+          "url",
+          "platform",
+          "mode",
+          "expires_at"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The link to send to the account owner.",
+            "format": "uri"
+          },
+          "platform": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PlatformId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The only platform the link connects, or `null` for any of the plan."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "test"
+            ],
+            "description": "Mode of the connections it creates: that of the key."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the link stops working (7 days after creation)."
+          }
+        }
+      },
+      "ConnectField": {
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "type",
+          "required"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Key inside `credentials`, or `listing_url` at the top level of the request."
+          },
+          "label": {
+            "type": "string",
+            "description": "Label for a form."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "secret",
+              "textarea",
+              "list",
+              "url"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Example value."
+          },
+          "help": {
+            "type": "string",
+            "description": "Where to find the value."
+          },
+          "file_accept": {
+            "type": "string",
+            "description": "For textarea fields: the file the value usually comes from."
+          }
+        }
+      },
+      "Platform": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "connect",
+          "reply",
+          "in_your_plan",
+          "available",
+          "live_ready",
+          "live_note",
+          "summary",
+          "steps",
+          "console_url",
+          "fields",
+          "example"
+        ],
+        "description": "How a platform connects and whether this workspace can connect it now.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PlatformId"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name."
+          },
+          "connect": {
+            "type": "string",
+            "enum": [
+              "oauth",
+              "credentials",
+              "listing_url"
+            ],
+            "description": "How `POST /v1/connections` connects it."
+          },
+          "reply": {
+            "type": "string",
+            "enum": [
+              "api",
+              "read"
+            ],
+            "description": "`api`: Prisma publishes replies. `read`: read only."
+          },
+          "in_your_plan": {
+            "type": "boolean",
+            "description": "Whether your plan (or its read packs) includes it."
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Whether it is enabled for your account (some platforms open gradually)."
+          },
+          "live_ready": {
+            "type": "boolean",
+            "description": "`false` while it can only be tried with test keys; a live `POST /v1/connections` returns `501 platform_not_available`."
+          },
+          "live_note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it isn't ready for live keys yet."
+          },
+          "summary": {
+            "type": "string",
+            "description": "What the account owner needs before starting."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Short setup steps for the account owner."
+          },
+          "console_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "Where the values come from."
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectField"
+            },
+            "description": "What `POST /v1/connections` expects."
+          },
+          "example": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "A request body for `POST /v1/connections` that works with a test key."
+          }
+        }
+      },
+      "PlatformList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Platform"
+            }
+          }
+        }
+      },
+      "WebhookEventType": {
+        "type": "string",
+        "enum": [
+          "review.created",
+          "review.updated",
+          "reply.published",
+          "reply.failed",
+          "connection.updated"
+        ]
+      },
+      "WebhookEventFilter": {
+        "type": "string",
+        "enum": [
+          "review.created",
+          "review.updated",
+          "reply.published",
+          "reply.failed",
+          "connection.updated",
+          "*"
+        ],
+        "description": "An event type, or `*` for all."
+      },
+      "Webhook": {
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "events",
+          "active",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Webhook endpoint ID (`we_…`).",
+            "example": "we_01KJ8R1A3B5C7D9E1F3G5H7J9K"
+          },
+          "url": {
+            "type": "string",
+            "description": "The endpoint.",
+            "format": "uri"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookEventFilter"
+            }
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Whether it receives deliveries."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was registered."
+          }
+        }
+      },
+      "WebhookCreated": {
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "events",
+          "secret",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Webhook endpoint ID (`we_…`)."
+          },
+          "url": {
+            "type": "string",
+            "description": "The endpoint.",
+            "format": "uri"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookEventFilter"
+            }
+          },
+          "secret": {
+            "type": "string",
+            "description": "Signing secret (`whsec_…`). Shown only in this response."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was registered."
+          }
+        }
+      },
+      "WebhookList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Webhook"
+            }
+          }
+        },
+        "description": "Not paginated, and without `next_cursor`."
+      },
+      "WebhookDeleted": {
+        "type": "object",
+        "required": [
+          "id",
+          "deleted"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Webhook endpoint ID."
+          },
+          "deleted": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "WebhookEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "created_at",
+          "data"
+        ],
+        "description": "The body of a webhook delivery. Events carry IDs, not full objects; retries keep the same `id`.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Event ID (`evt_…`). De-duplicate by it."
+          },
+          "type": {
+            "$ref": "#/components/schemas/WebhookEventType"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the event happened."
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "Usage": {
+        "type": "object",
+        "required": [
+          "plan",
+          "period",
+          "locations",
+          "requests",
+          "requests_per_minute_limit",
+          "replies_published",
+          "paid_reads"
+        ],
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "spark",
+              "beam",
+              "spectrum",
+              "aurora",
+              "custom"
+            ]
+          },
+          "period": {
+            "type": "string",
+            "description": "The current month, `YYYY-MM` in UTC.",
+            "pattern": "^\\d{4}-\\d{2}$"
+          },
+          "locations": {
+            "type": "object",
+            "required": [
+              "used",
+              "limit"
+            ],
+            "properties": {
+              "used": {
+                "type": "integer",
+                "description": "Active live locations (test and disconnected ones are not counted)."
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Locations of your plan plus the extra locations you pay for."
+              }
+            }
+          },
+          "requests": {
+            "type": "integer",
+            "description": "API requests this month from all of the workspace's keys, test keys included. Requests over the rate limit are not counted."
+          },
+          "requests_per_minute_limit": {
+            "type": "integer",
+            "description": "Your per-key rate limit."
+          },
+          "replies_published": {
+            "type": "integer",
+            "description": "Replies published through Prisma this month."
+          },
+          "paid_reads": {
+            "type": "object",
+            "required": [
+              "used",
+              "limit"
+            ],
+            "properties": {
+              "used": {
+                "type": "integer",
+                "description": "Reads used this month by platforms read through paid data providers (Yelp, Tripadvisor, Booking.com…) on live connections."
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Reads included this month: the plan's plus read packs."
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "description": "Every error has this shape. Some codes add fields (for example `platform`, `url`, `max_length`, `connection_id`, `upgrade_url`, `required_fields`).",
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "type",
+              "code",
+              "message",
+              "retryable",
+              "request_id",
+              "docs_url"
+            ],
+            "additionalProperties": true,
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "authentication_error",
+                  "permission_error",
+                  "not_found_error",
+                  "conflict_error",
+                  "invalid_request_error",
+                  "rate_limit_error",
+                  "api_error"
+                ],
+                "description": "Family of the error, from the HTTP status."
+              },
+              "code": {
+                "type": "string",
+                "description": "Stable, machine-readable code. Branch on this, not on `message`."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable explanation. It can change."
+              },
+              "retryable": {
+                "type": "boolean",
+                "description": "`true` for 429 and 5xx: the same request can succeed later."
+              },
+              "request_id": {
+                "type": "string",
+                "description": "The `req_…` ID, also in the `Request-Id` header."
+              },
+              "docs_url": {
+                "type": "string",
+                "description": "Description of this code.",
+                "format": "uri"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
